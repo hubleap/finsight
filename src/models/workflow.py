@@ -50,14 +50,13 @@ class Chat(BaseModel):
 
 class WorkflowSettings(BaseModel):
     """Settings for AI workflow execution.
-
     Attributes:
         session_id: Unique identifier for the workflow session
         temperature: LLM temperature setting for response generation
     """
-    session_id: str = Field(uuid4().hex, description='The session id of the workflow')
-    temperature: float = Field(0, description='The temperature of the workflow')
-    online: bool = Field(True, description='Whether the workflow is online or offline')
+    session_id: str = Field(default=uuid4().hex, description='The session id of the workflow')
+    temperature: float = Field(default=0, description='The temperature of the workflow')
+    online: bool = Field(default=True, description='Whether the workflow is online or offline')
 
     @computed_field
     @property

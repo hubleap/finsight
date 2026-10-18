@@ -1,4 +1,5 @@
 import json
+from typing import Generator
 
 import streamlit as st
 
@@ -148,7 +149,7 @@ class Finbot:
             st.session_state['messages'].append({'role': 'assistant', 'text': full_response})
             st.rerun()
 
-    def parse_event_stream(self, events: bytes):
+    def parse_event_stream(self, events: Generator):
         for chunk in events:
             if isinstance(chunk, (bytearray, bytes)):
                 chunk = chunk.decode('utf-8')
