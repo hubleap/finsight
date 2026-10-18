@@ -69,4 +69,35 @@ def get_top_income(df: pd.DataFrame, column: str, start: Optional[datetime] = No
     columns = df.groupby(column)['amount_ngn'].sum()
     return columns.head(n)
 
+def get_golden_dataset(df: pd.DataFrame):
+    total_income = get_total_income(df)
+    total_expense = get_total_expense(df)
+    expense_categories = get_expense_categories(df)
+    net_cashflow = get_net_cashflow(df)
+    top_income_categories = get_top_income(df, 'category')
 
+    # How much did the business make
+    dataset = [
+        {
+            'question': "How mush did the business make?",
+            'answer': total_income
+        },
+        {
+            'question': "How mush did the business spend?",
+            'answer': total_expense
+        },
+        {
+            'question': "What did the business spend money on?",
+            'answer': expense_categories
+        },
+        {
+            'question': "What is the net cashflow",
+            'answer': net_cashflow
+        },
+        {
+            'question': "Which category generates the most revenue",
+            'answer': top_income_categories
+        },
+    ]
+
+    return pd.DataFrame(dataset)
