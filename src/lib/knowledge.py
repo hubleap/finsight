@@ -7,10 +7,10 @@ from langchain_core.tools import StructuredTool
 import pandas as pd
 
 from src.lib import splitter
-import os
 
-from src.lib.config import OLLAMA_API_KEY, OLLAMA_BASE_URL, OLLAMA_EMBEDDING_MODEL, VECTOR_DIR
+from src.lib.config import OLLAMA_BASE_URL, OLLAMA_EMBEDDING_MODEL, VECTOR_DIR
 from src.lib.logger import get_logger
+from src.lib.tool_set import AgentTool
 
 logger = get_logger('Knowledge')
 
@@ -130,21 +130,22 @@ class Knowledge:
         Returns:
             List of relevant Document objects
         """
+        logger.info(f"Looking for documents")
         retriever = self.store.as_retriever(search_type='mmr', search_kwargs={'k': search_count})
         data = retriever.invoke(query)
         return data
 
-    def retrieve_tool(self) -> StructuredTool:
+    def retrieve_tool(self, name: str, description: str) -> AgentTool:
         """Create a LangChain tool for knowledge retrieval.
 
         Returns:
-            StructuredTool for querying the vector store
+            AgentTool for querying the vector store
         """
-        return StructuredTool.from_function(
-            name='knowledge_retriever',
-            description=(
-                "Used to extract farm knowledge from the vector store. "
-                "Can be used to retrieve farm records, operational documents, and historical data."
-            ),
+        tool = StructuredTool.from_function(
+            name=name,
+            description=description,
             func=lambda query, search_count=3: self.retrieve(query=query, search_count=search_count)
         )
+
+        return AgentTool(action='Learning', tool=tool)
+    

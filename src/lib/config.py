@@ -32,8 +32,11 @@ MODEL_DIR = os.path.join(BASE_DIR, "models")
 
 # LLM configuration
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
-CHAT_MODEL = os.getenv('CHAT_MODEL', 'gemini-2.5-flash')
 TEMPERATURE = float(os.getenv('TEMPERATURE', 0))
+
+GOOGLE_CHAT_MODEL = os.getenv('GOOGLE_CHAT_MODEL', 'gemini-2.5-flash')
+GOOGLE_EMBEDDING_MODEL = os.getenv('GOOGLE_EMBEDDING_MODEL', 'models/gemini-embedding-001')
+GOOGLE_API_KEY = os.getenv('GOOGLE_API_KEY')
 
 OLLAMA_API_KEY = os.getenv('OLLAMA_API_KEY')
 OLLAMA_CHAT_MODEL = os.getenv('OLLAMA_MODEL', 'gemma4:31b-cloud')

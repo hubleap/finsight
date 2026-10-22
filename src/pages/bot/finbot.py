@@ -106,6 +106,7 @@ class Finbot:
             key="user_input",
             accept_audio=False,
             accept_file=True,
+            file_type=["csv", "pdf"]
         ):
             text = prompt.text
             file = prompt.files[0] if len(prompt.files) else None
@@ -129,7 +130,6 @@ class Finbot:
             response_placeholder = st.empty()
             events = self.agent.stream(
                 SupportState(messages=[HumanMessage(content=text)]),
-                save=False,
             )
             full_response = ""
 

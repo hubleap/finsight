@@ -1,7 +1,8 @@
 from langchain_ollama import ChatOllama
+
 from src.lib.config import OLLAMA_CHAT_MODEL, TEMPERATURE, OLLAMA_API_KEY, OLLAMA_BASE_URL
 
-def get_llm(model: str = OLLAMA_CHAT_MODEL, temperature: float = TEMPERATURE) -> ChatOllama:
+def get_ollama_llm(model: str = OLLAMA_CHAT_MODEL, temperature: float = TEMPERATURE) -> ChatOllama:
     """Get LLM instance based on environment configuration.
 
     Args:

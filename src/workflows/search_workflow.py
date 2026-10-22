@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 from src.lib.knowledge import Knowledge
 from src.lib.tool_set import AgentTool
 from src.models.workflow import BaseWorkflow, WorkflowSettings
-from src.lib.llms import get_llm
+from src.lib.llms import get_ollama_llm
 from src.lib.config import APP_NAME
 
 
@@ -44,8 +44,8 @@ class SearchState(BaseModel):
         search_count: Number of documents to retrieve
     """
     query: str = Field(..., description='The query of the user')
-    documents: Optional[list[Document]] = Field([], description='The retreived documents')
-    search_count: Optional[int] = Field(5, description='The number of documents to retreive')
+    search_count: int = Field(default=3, description='The number of documents to retreive')
+    documents: Optional[list[Document]] = Field(default_factory=list, description='The retreived documents')
 
 
 class SearchWorkflow(BaseWorkflow):
@@ -144,7 +144,7 @@ class SearchWorkflow(BaseWorkflow):
         formatted_prompt = prompt.format(query=state.query, documents=state.documents)
         system_message = SystemMessage(content=formatted_prompt)
 
-        llm = get_llm()
+        llm = get_ollama_llm()
         response = llm.with_structured_output(Ranking).invoke([system_message]+[HumanMessage(content='Rank the documents')])
 
         ranks = {r.index: r.relevance for r in response.ranks}
@@ -183,15 +183,17 @@ class SearchWorkflow(BaseWorkflow):
 
             Now convert this query into a web search_query:
             Query: {query}
+            
             Output: <search_query>
         """
         formatted_prompt = prompt.format(query=state.query)
 
-        llm = get_llm()
+        llm = get_ollama_llm()
         response = llm.invoke([SystemMessage(content=formatted_prompt)] + [HumanMessage(content=f"Turn the question into a search query")])
 
         tavily_search = TavilySearch(max_results=state.search_count, search_depth='advanced')
         search_result = tavily_search.invoke(response.content)
+        
         documents = [
             Document(page_content=result['content'], metadata={'url': result['url'], 'title': result['title']})
             for result in search_result['results']
@@ -234,7 +236,7 @@ class SearchWorkflow(BaseWorkflow):
         response = self.graph.invoke(state)
         return response['documents']
 
-    def as_tool(self, name: str) -> AgentTool:
+    def as_tool(self, name: str, description: str) -> AgentTool:
         """Convert workflow into a LangChain tool.
 
         Args:
@@ -245,10 +247,8 @@ class SearchWorkflow(BaseWorkflow):
         """
         tool = StructuredTool.from_function(
             name=name,
-            description=(
-                "Look up verified Rivers & Roots documentation, farm records, and operational information. Always use this before responding to factual questions."
-            ),
-            func=lambda query, search_count=None: self.invoke(
+            description=description,
+            func=lambda query, search_count=3: self.invoke(
                 SearchState(query=query, search_count=search_count)
             )
         )

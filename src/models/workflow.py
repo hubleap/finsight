@@ -1,9 +1,13 @@
-from typing_extensions import Literal, Optional
+from langchain_core.messages import AnyMessage
+from langchain_core.runnables import RunnableConfig
+from langgraph.prebuilt import ToolNode
+from typing_extensions import Annotated, Literal, Optional
 from uuid import uuid4
-from langgraph.graph import StateGraph
+from langgraph.graph import StateGraph, add_messages
 from pydantic import BaseModel, Field, computed_field
 
 from src.lib.logger import get_logger
+from src.lib.tool_set import AgentTool
 from src.models.document import UploadDocument
 
 
@@ -60,7 +64,7 @@ class WorkflowSettings(BaseModel):
 
     @computed_field
     @property
-    def config(self) -> dict:
+    def config(self) -> RunnableConfig :
         """Generate LangGraph configuration dictionary with thread ID.
 
         Returns:
@@ -95,13 +99,22 @@ class BaseWorkflow(StateGraph):
         self.logger.info('Invoked')
 
 
+class BaseAgentState(BaseModel):
+    """State model for the support agent.
+
+    Attributes:
+        messages: Conversation history messages
+        violated: Whether user violated conversation policies
+    """
+    messages: Annotated[list[AnyMessage], add_messages] = Field([], description='The conversation history')
+
 class BaseAgent(BaseWorkflow):
     """Base class for AI agents.
 
     Extends BaseWorkflow with streaming capabilities for responses.
     """
 
-    def __init__(self, state_schema: type, settings = WorkflowSettings()) -> None:
+    def __init__(self, state_schema: type, settings = WorkflowSettings(), tools: list[AgentTool] = []) -> None:
         """Initialize the agent with state schema and settings.
 
         Args:
@@ -111,8 +124,31 @@ class BaseAgent(BaseWorkflow):
         super().__init__(state_schema)
         self.settings = settings
         self.logger = get_logger(self.__class__.__name__)
+        self.set_tools(tools)
 
-    def stream(self, state, db, cache):
+
+    def set_tools(self, tools: list[AgentTool]):
+        """Configure and register all available tools for the agent.
+
+        Initializes workflows for search, enhancement, evaluation,
+        and document extraction.
+        """
+
+        self.tools = []
+        self.tool_actions = {}
+        self.skill_set = []
+
+        for item in tools:
+            self.tools.append(item.tool)
+            self.skill_set.append(f"- {item.tool.name}: {item.tool.description}")
+            self.tool_actions[item.tool.name] = item.action
+
+        self.tool_model = ToolNode(self.tools)
+
+    def invoke(self, state: BaseAgentState) -> str:
+        ...
+
+    def stream(self, state: BaseAgentState):
         """Stream responses from the agent.
 
         Args:

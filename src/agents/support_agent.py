@@ -1,36 +1,25 @@
-from enum import StrEnum
 import json
-import re
-from pydantic import BaseModel, Field
-from typing_extensions import Annotated
-from langchain_core.messages import AnyMessage, SystemMessage, AIMessageChunk
+from pydantic import Field
+from langchain_core.messages import SystemMessage, AIMessageChunk
 from langgraph.checkpoint.memory import MemorySaver
-from langgraph.graph import END, add_messages
-from langgraph.prebuilt import ToolNode, tools_condition
+from langgraph.graph import END
+from langgraph.prebuilt import tools_condition
 
-from src.lib.llms import get_llm
+from src.lib.llms import get_ollama_llm
 from src.lib.guardrail import GuardResult, check
 
-from src.models.workflow import BaseAgent, WorkflowSettings
+from src.lib.tool_set import AgentTool, ToolSet
+from src.models.workflow import BaseAgent, BaseAgentState, WorkflowSettings
 from src.workflows.search_workflow import SearchWorkflow
 
 
-class ToolSet(StrEnum):
-    """Enumeration of available tools for the support agent.
-
-    Members:
-        Searcher: Document search tool
-    """
-    Searcher = 'Searcher'
-
-class SupportState(BaseModel):
+class SupportState(BaseAgentState):
     """State model for the support agent.
 
     Attributes:
         messages: Conversation history messages
         violated: Whether user violated conversation policies
     """
-    messages: Annotated[list[AnyMessage], add_messages] = Field([], description='The conversation history')
     violated: GuardResult = Field(default=GuardResult(True), description='Status of user violation')
 
 class SupportAgent(BaseAgent):
@@ -42,37 +31,14 @@ class SupportAgent(BaseAgent):
 
     TOOL_MODEL = 'tools'
 
-    def __init__(self, settings=WorkflowSettings()):
+    def __init__(self, settings=WorkflowSettings(), tools: list[AgentTool] = []):
         """Initialize the support agent.
 
         Args:
             settings: Workflow configuration settings
         """
-        super().__init__(SupportState, settings=settings)
-        self.set_tools()
-        self.tool_model = ToolNode(self.tools)
+        super().__init__(SupportState, settings=settings, tools=tools)
         self._build_graph()
-
-    def set_tools(self):
-        """Configure and register all available tools for the agent.
-
-        Initializes workflows for search, enhancement, evaluation,
-        and document extraction.
-        """
-        searcher = SearchWorkflow(['finsight'], settings=self.settings)
-
-        tools = [
-            searcher.as_tool(ToolSet.Searcher),
-        ]
-
-        self.tools = []
-        self.tool_actions = {}
-        self.skill_set = []
-
-        for item in tools:
-            self.tools.append(item.tool)
-            self.skill_set.append(f"- {item.tool.name}: {item.tool.description}")
-            self.tool_actions[item.tool.name] = item.action
         
     def _build_graph(self):
         """Build the workflow graph with guardrail, support, and tool nodes."""
@@ -99,12 +65,14 @@ class SupportAgent(BaseAgent):
         Returns:
             Dictionary with violated status
         """
+        self.logger.info("Guardrailing message")
+
         # Get the latest user message
         user_message = state.messages[-1].content if state.messages else ""
 
 
         # Check if prohibited topics are mentioned without business context
-        violation = check(user_message)
+        violation = check(str(user_message))
         return {'violated': violation}
 
 
@@ -158,7 +126,7 @@ class SupportAgent(BaseAgent):
         )
 
         system_message = SystemMessage(content=formatted_prompt)
-        llm = get_llm(temperature=self.settings.temperature).bind_tools(self.tools)
+        llm = get_ollama_llm(temperature=self.settings.temperature).bind_tools(self.tools)
         response = llm.invoke(
             [system_message] +
             state.messages
@@ -166,7 +134,7 @@ class SupportAgent(BaseAgent):
         return {'messages': response}
 
 
-    def invoke(self, state: SupportState) -> str:
+    def invoke(self, state: SupportState):
         """Execute the workflow and return the response.
 
         Args:
@@ -177,10 +145,11 @@ class SupportAgent(BaseAgent):
         """
 
         response = self.graph.invoke(state, config=self.settings.config)
-        return response
+        reply = response['messages'][-1].content
+        return reply
     
 
-    def stream(self, state: SupportState, save=False):
+    def stream(self, state: SupportState):
         """Stream the workflow execution with real-time SSE output.
 
         Args:
@@ -208,10 +177,14 @@ class SupportAgent(BaseAgent):
                     if action:
                         yield f"data: {json.dumps({'type': 'tool_call', 'content': action})}\n\n"
 
-def get_support_agent() -> SupportAgent:
+def get_support_agent(collections: list[str] = ['finsight'], settings = WorkflowSettings()) -> SupportAgent:
     """Factory function to create a support agent instance.
 
     Returns:
         Configured SupportAgent instance
     """
-    return SupportAgent()
+
+    tools = [
+        SearchWorkflow(collections, settings=settings).as_tool(ToolSet.Searcher, description="Look up verified Finsight documentation, transaction records, and operational information. Always use this before responding to factual questions."),
+    ]
+    return SupportAgent(tools=tools, settings=settings)

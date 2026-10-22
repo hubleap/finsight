@@ -5,7 +5,7 @@ from langchain_core.tools import StructuredTool
 
 from src.lib.tool_set import AgentTool
 from src.models.workflow import BaseWorkflow, WorkflowSettings
-from src.lib.llms import get_llm
+from src.lib.llms import get_ollama_llm
 
 
 class EnhanceState(BaseModel):
@@ -19,8 +19,8 @@ class EnhanceState(BaseModel):
     """
     query: str = Field(..., description="The user query")
     context: list = Field(..., description="The conversation history")
-    guide: Optional[str] = Field(None, description="A guide to make enhancement better")
-    enhanced: Optional[str] = Field(None, description="The enhanced query")
+    guide: Optional[str] = Field(default=None, description="A guide to make enhancement better")
+    enhanced: Optional[str] = Field(default=None, description="The enhanced query")
 
 
 class EnhanceWorkflow(BaseWorkflow):
@@ -83,7 +83,7 @@ class EnhanceWorkflow(BaseWorkflow):
         print(formatted_prompt)
         system_message = SystemMessage(content=formatted_prompt)
 
-        llm = get_llm()
+        llm = get_ollama_llm()
         response = llm.invoke([system_message]+[HumanMessage(content="Enhance the query")])
         return {"enhanced": response.content}
 

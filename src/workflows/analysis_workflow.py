@@ -6,7 +6,7 @@ from typing_extensions import Annotated, Literal, Optional
 from langgraph.checkpoint.memory import MemorySaver
 
 from langchain_core.messages import AnyMessage, HumanMessage, SystemMessage
-from src.lib.llms import get_llm
+from src.lib.llms import get_ollama_llm
 from src.lib.knowledge import Knowledge
 from src.lib.tool_set import AgentTool
 from src.models.analysis import ANALYSIS_DEPTH
@@ -96,7 +96,7 @@ class AnalysisWorkflow(BaseWorkflow):
         self.tools = []
         if user_id:
             km = Knowledge(user_id)
-            self.tools.append(km.retrieve_tool())
+            self.tools.append(km.retrieve_tool(name="knowledge_base", description="Used to extract farm knowledge from the vector store."))
 
         self.tool_model = ToolNode(self.tools)
 
@@ -163,7 +163,7 @@ class AnalysisWorkflow(BaseWorkflow):
         """
         formated_propmt = prompt.format(depth=state.depth)
         system_message = SystemMessage(content=formated_propmt)
-        llm = get_llm(temperature=self.settings.temperature, model='gpt-oss:120b-cloud').bind_tools(self.tools)
+        llm = get_ollama_llm(temperature=self.settings.temperature, model='gpt-oss:120b-cloud').bind_tools(self.tools)
         response = llm.invoke(
             [system_message] +
             state.messages
@@ -217,7 +217,7 @@ class AnalysisWorkflow(BaseWorkflow):
             - confidence: float (0-1)
         """
         formated_prompt = prompt.format(data=state.messages[-1].content)
-        llm = get_llm()
+        llm = get_ollama_llm()
         structured_llm = llm.with_structured_output(Analysis)
         response = structured_llm.invoke(formated_prompt)
         return {"analysis": response}
