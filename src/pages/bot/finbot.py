@@ -2,14 +2,19 @@ import json
 from typing import Generator
 
 import streamlit as st
+import pandas as pd
+from langchain_core.messages import HumanMessage
 
 from src.agents.support_agent import SupportAgent, SupportState
-from langchain_core.messages import HumanMessage
+from src.lib.knowledge import Knowledge
+from src.lib.storage import Storage
 
 
 class Finbot:
-    def __init__(self, agent: SupportAgent):
+    def __init__(self, agent: SupportAgent, km: Knowledge, store: Storage):
         self.agent = agent
+        self.km = km
+        self.store = store
 
         if 'messages' not in st.session_state:
             st.session_state['messages'] = []
@@ -31,7 +36,7 @@ class Finbot:
                     <span class="farm-header-icon">🌾</span>
                     <div>
                         <h1 style="margin: 0;">Finbot</h1>
-                        <p style="margin: 0; color: #A5D6A7;">Rivers & Roots — Ask about ponds, batches, feed, harvest, and more.</p>
+                        <p style="margin: 0; color: #A5D6A7;">Finsight; get insights on your business finances</p>
                     </div>
                 </div>
                 """,
@@ -122,6 +127,7 @@ class Finbot:
             st.markdown(query['text'])
             if file:
                 st.caption(f"Attached: {file.name}")
+                self.injest(file)
 
         tool_placeholder = st.empty()
         tool_placeholder.markdown("🌱 Thinking...")
@@ -163,3 +169,9 @@ class Finbot:
                         yield response
                     except json.JSONDecodeError:
                         pass
+
+    def injest(self, file):
+        data = file.read()
+        text = self.store.binary_to_text(data, file.name, file.type)
+        self.km.ingest_from_text(text, metadata={}, file_id=file.name)
+            

@@ -108,6 +108,7 @@ class BaseAgentState(BaseModel):
     """
     messages: Annotated[list[AnyMessage], add_messages] = Field([], description='The conversation history')
 
+
 class BaseAgent(BaseWorkflow):
     """Base class for AI agents.
 

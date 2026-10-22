@@ -161,7 +161,7 @@ class EvaluateWorkflow(BaseWorkflow):
         super().invoke(state)
 
         self.related_df = get_transaction_in_timeframe(self.data, start, stop)
-        await self.knowledge.ingest_from_dataframe(self.related_df, 'eval')  
+        self.knowledge.ingest_from_dataframe(self.related_df, 'eval')  
 
         self.golden_df = get_golden_dataset(self.data, start=start, stop=stop)
 

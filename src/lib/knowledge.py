@@ -23,7 +23,7 @@ class Knowledge:
     ingesting from pandas DataFrames.
     """
 
-    def __init__(self, collection_name: str = 'farm_docs', persistent_dir: str = VECTOR_DIR):
+    def __init__(self, collection_name: str = 'finsight', persistent_dir: str = VECTOR_DIR):
         """Initialize the knowledge manager with Chroma vector store.
 
         Args:
@@ -55,7 +55,7 @@ class Knowledge:
             client=self.client
         )
     
-    async def ingest_from_text(self, text: str, metadata: dict, file_id: str):
+    def ingest_from_text(self, text: str, metadata: dict, file_id: str):
         """Ingest text into the vector store.
 
         Args:
@@ -64,7 +64,7 @@ class Knowledge:
             file_id: Identifier for the text source
         """
         chunks = splitter.split_text(text)
-        await self.delete_document(file_id)
+        self.delete_document(file_id)
 
         self.store.add_texts(
             texts=chunks,
@@ -73,8 +73,7 @@ class Knowledge:
         )
         logger.info(f"Ingested text with id {file_id} into vector store")
 
-
-    async def ingest_from_dataframe(self, df: pd.DataFrame, file_id: str):
+    def ingest_from_dataframe(self, df: pd.DataFrame, file_id: str):
         """Ingest data from a pandas DataFrame into the vector store.
 
         Args:
@@ -83,7 +82,7 @@ class Knowledge:
         """
         documents = splitter.split_dataframe(df)
         chunks = splitter.split_text("\n".join([doc.page_content for doc in documents]))
-        await self.delete_document(file_id)
+        self.delete_document(file_id)
 
         self.store.add_texts(
             texts=chunks,
@@ -92,7 +91,7 @@ class Knowledge:
         )
         logger.info(f"Ingested dataframe with id {file_id} into vector store")
 
-    async def get_file(self, file_id: str):
+    def get_file(self, file_id: str):
         """Retrieve all chunks associated with a file ID.
 
         Args:
@@ -106,13 +105,13 @@ class Knowledge:
         )
         return results
 
-    async def delete_document(self, file_id: str):
+    def delete_document(self, file_id: str):
         """Delete all chunks associated with a file ID.
 
         Args:
             file_id: File identifier to delete
         """
-        results = await self.get_file(file_id)
+        results = self.get_file(file_id)
         if results['ids']:
             self.collection.delete(ids=results['ids'])
 
