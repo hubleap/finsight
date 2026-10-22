@@ -60,7 +60,7 @@ class WorkflowSettings(BaseModel):
     """
     session_id: str = Field(default=uuid4().hex, description='The session id of the workflow')
     temperature: float = Field(default=0, description='The temperature of the workflow')
-    online: bool = Field(default=True, description='Whether the workflow is online or offline')
+    online: bool = Field(default=False, description='Whether the workflow is online or offline')
 
     @computed_field
     @property
